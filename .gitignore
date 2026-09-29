@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+*.egg-info/
+
+# Large / regenerable data artifacts (keep schema, not necessarily every generated file)
+data/raw/*.csv
+data/processed/*.csv
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Model binaries can be large; keep model cards (.md) but not necessarily every .pkl if size is an issue
+# Uncomment below if repo size becomes a problem:
+# models/*.pkl
