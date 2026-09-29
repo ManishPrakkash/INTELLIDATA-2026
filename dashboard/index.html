@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -84,14 +84,46 @@
   .card.alt{background:var(--surface-alt); border-color:transparent;}
   .card.accent{background:var(--accent); color:var(--accent-ink); border-color:transparent;}
   .card.dark{background:var(--card-dark-bg); color:var(--card-dark-fg); border-color:transparent;}
+  .card.kpi-col{display:flex; flex-direction:column; min-height:190px;}
   .card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
   .card-head h3{font-size:.85em; font-weight:600; opacity:.85;}
+  .mini-icon{background:none; border:none; padding:0; color:inherit; opacity:.55; cursor:pointer; display:flex;}
+  .mini-icon:hover{opacity:1;}
+  .chart-legend{display:flex; gap:14px; font-size:.76em; color:var(--ink-soft); font-weight:500;}
+  .chart-legend span{display:flex; align-items:center; gap:5px;}
+  .chart-legend i{width:8px; height:8px; border-radius:50%; display:inline-block;}
   .stat{font-size:2em; font-weight:800; line-height:1.1;}
   .trend{font-size:.78em; font-weight:700; padding:2px 7px; border-radius:999px; display:inline-flex; align-items:center; gap:3px;}
   .trend.up{background:rgba(30,142,90,.15); color:var(--risk-low);}
   .trend.down{background:rgba(200,30,58,.15); color:var(--risk-high);}
   .card.accent .trend, .card.dark .trend{background:rgba(255,255,255,.18); color:inherit;}
   .sub{font-size:.78em; opacity:.75; margin-top:4px;}
+
+  /* card 1 -- daily-revenue sparkline */
+  .sparkline-wrap{margin-top:auto; padding-top:12px; position:relative;}
+  .sparkline-wrap svg{width:100%; height:52px; display:block; overflow:visible;}
+  .spark-tip{position:absolute; background:var(--surface); color:var(--ink); font-size:.68em; font-weight:700;
+      padding:3px 8px; border-radius:7px; transform:translate(-50%,-130%); white-space:nowrap; box-shadow:0 4px 10px rgba(0,0,0,.25);}
+
+  /* card 2 -- fulfilled/lost horizontal split bar */
+  .splitbar{display:flex; height:36px; border-radius:9px; overflow:hidden; margin-top:auto; margin-bottom:10px;}
+  .splitbar .seg{display:flex; align-items:center; justify-content:center; font-size:.78em; font-weight:800;}
+  .splitbar .seg.fulfilled{background:rgba(255,255,255,.94); color:var(--ink);}
+  .splitbar .seg.lost{background:rgba(20,15,10,.88); color:#fff;}
+  .splitbar-legend{display:flex; gap:14px; font-size:.74em; font-weight:500; opacity:.9;}
+  .splitbar-legend span{display:flex; align-items:center; gap:5px;}
+  .splitbar-legend i{width:7px; height:7px; border-radius:50%; display:inline-block;}
+
+  /* card 3 -- weekday x week dot-matrix heatmap */
+  .heatgrid-wrap{margin-top:auto; padding-top:10px; position:relative;}
+  .heatgrid{display:grid; grid-template-columns:repeat(7,1fr); gap:4px;}
+  .heatgrid .cell{aspect-ratio:1; border-radius:3px; background:var(--ink);}
+  .heatgrid-days{display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-top:6px;}
+  .heatgrid-days span{font-size:.62em; text-align:center; color:var(--ink-soft); font-weight:600;}
+  .grid-tip{position:absolute; background:var(--ink); color:var(--bg); font-size:.66em; font-weight:700;
+      padding:4px 8px; border-radius:7px; white-space:nowrap; transform:translate(-50%,-135%);}
+  .grid-tip::after{content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+      border:4px solid transparent; border-top-color:var(--ink);}
 
   .kpi-col{grid-column:span 3;}
   @media (max-width:900px){ .kpi-col{grid-column:span 1;} }
@@ -117,19 +149,40 @@
   .legend .dot{width:8px; height:8px; border-radius:50%; flex:none;}
   .legend .val{margin-left:auto; font-weight:700;}
 
-  /* bar chart (hatched, echoes the reference's textured bars) */
-  .barchart{display:flex; align-items:flex-end; gap:10px; height:180px; margin-top:14px; position:relative;}
-  .barchart .bar-col{flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; gap:6px; position:relative;}
-  .barchart .bar{width:100%; border-radius:6px 6px 2px 2px; background:
-      repeating-linear-gradient(135deg, var(--accent-soft), var(--accent-soft) 4px, transparent 4px, transparent 8px),
-      var(--surface-alt); border:1px solid var(--border); position:relative;}
-  .barchart .bar.hi{background:
-      repeating-linear-gradient(135deg, rgba(255,255,255,.35), rgba(255,255,255,.35) 4px, transparent 4px, transparent 8px),
-      var(--accent);}
-  .barchart .label{font-size:.72em; color:var(--ink-soft);}
-  .callout{position:absolute; bottom:100%; margin-bottom:8px; background:var(--ink); color:var(--bg); font-size:.72em;
-           padding:6px 9px; border-radius:8px; white-space:nowrap; font-weight:600; left:50%; transform:translateX(-50%);}
-  .callout::after{content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--ink);}
+  /* bar chart -- hatched bars, split-segment hover state, tooltip pill (component-matched to reference).
+     DOM nodes are built once and stay in the tree; only classes/opacity toggle on hover, so these
+     transitions actually animate (rebuilding innerHTML every hover, as an earlier version did, gives
+     the browser two different elements to jump between instead of one element to animate). */
+  .barchart{display:flex; align-items:flex-end; gap:16px; height:210px; margin-top:36px; position:relative; padding-top:96px;}
+  .barchart .bar-col{flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; gap:10px; position:relative; cursor:pointer;}
+  .barchart .bar{width:100%; border-radius:7px 7px 2px 2px; border:1.5px solid var(--ink); position:relative;
+      overflow:hidden;
+      background:
+        repeating-linear-gradient(135deg, var(--ink) 0 1.5px, transparent 1.5px 7px),
+        var(--surface);
+      opacity:.55; transition:opacity .3s cubic-bezier(.4,0,.2,1);}
+  .barchart .bar-col:hover .bar, .barchart .bar-col.is-active .bar{opacity:1;}
+  .barchart .bar .seg{position:absolute; left:0; width:100%; display:flex; align-items:flex-start; justify-content:center;
+      padding-top:5px; font-size:.72em; font-weight:800; box-sizing:border-box; opacity:0;
+      transition:opacity .35s cubic-bezier(.4,0,.2,1);}
+  .barchart .bar .seg.top{top:0; background:var(--surface); color:var(--ink); border-bottom:1.5px solid var(--ink);}
+  .barchart .bar .seg.bottom{bottom:0; background:var(--accent); color:var(--accent-ink);}
+  .barchart .bar-col.is-active .seg{opacity:1;}
+  .barchart .label{font-size:.76em; color:var(--ink-soft); font-weight:500; transition:color .3s ease;}
+  .barchart .bar-col.is-active .label{color:var(--ink); font-weight:700;}
+
+  .callout{position:absolute; bottom:calc(100% + 14px); background:var(--ink); color:var(--bg); font-size:.76em;
+           padding:9px 13px; border-radius:11px; white-space:nowrap; left:50%;
+           text-align:left; box-shadow:0 10px 24px rgba(0,0,0,.16); z-index:5; pointer-events:none;
+           opacity:0; visibility:hidden; transform:translateX(-50%) translateY(6px);
+           transition:opacity .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1), visibility 0s linear .3s;}
+  .barchart .bar-col.is-active .callout{opacity:1; visibility:visible; transform:translateX(-50%) translateY(0);
+      transition:opacity .3s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1), visibility 0s;}
+  .callout b{display:block; margin-bottom:5px; font-size:1.05em; font-weight:700;}
+  .callout .row{display:flex; align-items:center; gap:7px; font-weight:500; opacity:.9; line-height:1.6;}
+  .callout .row .dot{width:6px; height:6px; border-radius:50%; flex:none;}
+  .callout::after{content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%);
+      border:6px solid transparent; border-top-color:var(--ink);}
 
   .citybar{display:flex; align-items:flex-end; gap:14px; height:150px; margin-top:14px;}
   .citybar .col{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px;}
@@ -188,26 +241,34 @@
     </div>
 
     <div class="grid">
-      <div class="card alt kpi-col">
-        <div class="card-head"><h3>Network Revenue</h3></div>
+      <div class="card dark kpi-col">
+        <div class="card-head"><h3>Network Revenue</h3><button class="mini-icon" title="Options"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg></button></div>
         <div class="stat" id="statRevenue">—</div>
         <div class="sub"><span class="trend" id="trendRevenue">—</span> last 4 weeks vs prior 4</div>
+        <div class="sparkline-wrap">
+          <svg id="sparkline" viewBox="0 0 200 52" preserveAspectRatio="none"></svg>
+        </div>
       </div>
 
       <div class="card accent kpi-col">
-        <div class="card-head"><h3>Estimated Lost Sales</h3></div>
+        <div class="card-head"><h3>Estimated Lost Sales</h3><button class="mini-icon" title="Options"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg></button></div>
         <div class="stat" id="statLostSales">—</div>
         <div class="sub" id="subLostSales">—</div>
+        <div class="splitbar" id="splitBar"></div>
+        <div class="splitbar-legend" id="splitBarLegend"></div>
       </div>
 
-      <div class="card dark kpi-col">
-        <div class="card-head"><h3>Network Stock-out Rate</h3></div>
+      <div class="card alt kpi-col">
+        <div class="card-head"><h3>Network Stock-out Rate</h3><button class="mini-icon" title="Options"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="9" cy="18" r="2"/></svg></button></div>
         <div class="stat" id="statStockout">—</div>
-        <div class="heatstrip" id="heatStrip"></div>
+        <div class="heatgrid-wrap">
+          <div class="heatgrid" id="heatGrid"></div>
+          <div class="heatgrid-days"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div>
+        </div>
       </div>
 
       <div class="card panel-col">
-        <div class="card-head"><h3>Category Revenue Share</h3></div>
+        <div class="card-head"><h3>Category Revenue Share</h3><button class="mini-icon" title="Expand"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M7 7h10v10"/></svg></button></div>
         <div class="donut-wrap">
           <div class="donut" id="donut"></div>
           <div class="legend" id="donutLegend"></div>
@@ -215,7 +276,13 @@
       </div>
 
       <div class="card wide-col">
-        <div class="card-head"><h3>Weekly Revenue Trend</h3></div>
+        <div class="card-head">
+          <h3>Weekly Revenue Trend</h3>
+          <div class="chart-legend">
+            <span><i style="background:var(--surface); border:1.5px solid var(--ink);"></i>Fulfilled</span>
+            <span><i style="background:var(--accent);"></i>Lost to stock-out</span>
+          </div>
+        </div>
         <div class="barchart" id="revBarChart"></div>
       </div>
 
@@ -257,7 +324,20 @@
     unitsSold: 192719,
     stockoutRate: 0.1587,
     estimatedLostSales: 1711577,
-    weekdayStockout: [0.1849, 0.1638, 0.1431, 0.1241, 0.1301, 0.1639, 0.1983], // Mon..Sun, real per-weekday mean
+    // aggregate (whole-period) fulfilled vs lost-to-stockout split -- real, from
+    // revenue / (revenue + total lost sales)
+    fulfilledPct: 89.5, lostPct: 10.5,
+    // last 35 daily revenue totals, oldest -> newest, for the sparkline
+    dailyRevenue: [83476,70794,73267,72305,62189,67924,70816,71810,72144,70116,63554,61558,68293,66475,65036,62109,58451,57809,60995,64549,56294,64435,63400,63195,58085,63678,56756,69728,70199,63574,70087,67423,70211,81960,69257],
+    // 5 full Mon-Sun weeks x 7 weekdays, real stock-out rate per cell; oldest week first
+    heatGrid: [
+      [0.236, 0.245, 0.208, 0.194, 0.218, 0.273, 0.319],
+      [0.259, 0.227, 0.181, 0.199, 0.213, 0.255, 0.259],
+      [0.231, 0.157, 0.185, 0.190, 0.190, 0.259, 0.245],
+      [0.222, 0.194, 0.190, 0.148, 0.171, 0.255, 0.255],
+      [0.199, 0.167, 0.171, 0.247, 0.225, 0.235, 0.313],
+    ],
+    heatGridPeak: {row:0, col:6, label:"Sun, Dec 21"}, // real peak cell: 31.9%
     categoryShare: [
       {label:"Household", value:20.5},
       {label:"Snacks", value:19.4},
@@ -266,17 +346,19 @@
       {label:"Beverages", value:16.0},
       {label:"Frozen", value:6.4},
     ],
+    // fulfilledPct/lostPct computed from (revenue) vs (censored-demand-corrected lost
+    // sales) per week -- real numbers, not illustrative, per data/processed/master_table.csv
     weeklyRevenue: [
-      {label:"Nov 22", value:548787},
-      {label:"Nov 29", value:501195},
-      {label:"Dec 06", value:467882},
-      {label:"Dec 13", value:514821},
-      {label:"Dec 20", value:518199},
-      {label:"Dec 27", value:521647},
-      {label:"Jan 03", value:478553},
-      {label:"Jan 10", value:439731},
-      {label:"Jan 17", value:430953},
-      {label:"Jan 24", value:461446},
+      {label:"Nov 22", value:548787, lost:80026, fulfilledPct:87.3, lostPct:12.7},
+      {label:"Nov 29", value:501195, lost:69373, fulfilledPct:87.8, lostPct:12.2},
+      {label:"Dec 06", value:467882, lost:66375, fulfilledPct:87.6, lostPct:12.4},
+      {label:"Dec 13", value:514821, lost:74245, fulfilledPct:87.4, lostPct:12.6},
+      {label:"Dec 20", value:518199, lost:96149, fulfilledPct:84.3, lostPct:15.7},
+      {label:"Dec 27", value:521647, lost:101658, fulfilledPct:83.7, lostPct:16.3},
+      {label:"Jan 03", value:478553, lost:98655, fulfilledPct:82.9, lostPct:17.1},
+      {label:"Jan 10", value:439731, lost:90117, fulfilledPct:83.0, lostPct:17.0},
+      {label:"Jan 17", value:430953, lost:86623, fulfilledPct:83.3, lostPct:16.7},
+      {label:"Jan 24", value:461446, lost:95317, fulfilledPct:82.9, lostPct:17.1},
     ],
     cityStockout: [
       {city:"Chennai", pct:21.3},
@@ -315,17 +397,65 @@
     (DATA.estimatedLostSales/DATA.revenue*100).toFixed(1) + "% of revenue recoverable with better replenishment";
 
   document.getElementById("statStockout").textContent = (DATA.stockoutRate*100).toFixed(1) + "%";
-  const days = ["M","T","W","T","F","S","S"];
-  const heat = document.getElementById("heatStrip");
-  const maxWd = Math.max(...DATA.weekdayStockout);
-  DATA.weekdayStockout.forEach((v,i)=>{
-    const cell = document.createElement("div");
-    cell.className = "cell";
-    const alpha = 0.35 + 0.65*(v/maxWd);
-    cell.style.background = `rgba(244,241,236,${alpha})`;
-    cell.textContent = days[i];
-    heat.appendChild(cell);
-  });
+
+  // card 1 -- daily revenue sparkline (real last-35-day series) with a peak-value tip
+  (function renderSparkline(){
+    const svg = document.getElementById("sparkline");
+    const w = 200, h = 52, pad = 4;
+    const vals = DATA.dailyRevenue;
+    const min = Math.min(...vals), max = Math.max(...vals);
+    const x = i => (i/(vals.length-1)) * w;
+    const y = v => h - pad - ((v-min)/(max-min)) * (h-pad*2);
+    const points = vals.map((v,i)=>`${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    const areaPoints = `0,${h} ${points} ${w},${h}`;
+    const peakIdx = vals.indexOf(max);
+    svg.innerHTML = `
+      <polygon points="${areaPoints}" fill="var(--accent)" opacity=".18"></polygon>
+      <polyline points="${points}" fill="none" stroke="var(--accent)" stroke-width="2.2"
+                stroke-linejoin="round" stroke-linecap="round"></polyline>
+      <circle cx="${x(peakIdx)}" cy="${y(max)}" r="3" fill="var(--accent)"></circle>`;
+    const tip = document.createElement("div");
+    tip.className = "spark-tip";
+    tip.style.left = (x(peakIdx)/w*100) + "%";
+    tip.style.top = (y(max)/h*100) + "%";
+    tip.textContent = fmtINR(max);
+    document.querySelector(".sparkline-wrap").appendChild(tip);
+  })();
+
+  // card 2 -- fulfilled vs lost-to-stockout aggregate split bar
+  (function renderSplitBar(){
+    const bar = document.getElementById("splitBar");
+    bar.innerHTML = `
+      <div class="seg fulfilled" style="flex:${DATA.fulfilledPct}">${DATA.fulfilledPct}%</div>
+      <div class="seg lost" style="flex:${DATA.lostPct}">${DATA.lostPct}%</div>`;
+    document.getElementById("splitBarLegend").innerHTML = `
+      <span><i style="background:#fff; border:1px solid rgba(0,0,0,.2);"></i>Fulfilled</span>
+      <span><i style="background:rgba(20,15,10,.88);"></i>Lost to stock-out</span>`;
+  })();
+
+  // card 3 -- weekday x week dot-matrix heatmap with a tooltip on the real peak cell
+  (function renderHeatGrid(){
+    const grid = document.getElementById("heatGrid");
+    const flat = DATA.heatGrid.flat();
+    const min = Math.min(...flat), max = Math.max(...flat);
+    DATA.heatGrid.forEach((row,r)=>{
+      row.forEach((v,c)=>{
+        const cell = document.createElement("div");
+        cell.className = "cell";
+        const alpha = 0.18 + 0.72 * ((v-min)/(max-min));
+        cell.style.opacity = alpha.toFixed(2);
+        if (r === DATA.heatGridPeak.row && c === DATA.heatGridPeak.col){
+          cell.style.position = "relative";
+          const tip = document.createElement("div");
+          tip.className = "grid-tip";
+          tip.style.left = "50%"; tip.style.top = "0";
+          tip.textContent = (v*100).toFixed(1) + "%";
+          cell.appendChild(tip);
+        }
+        grid.appendChild(cell);
+      });
+    });
+  })();
 
   const highRiskCount = DATA.priorityRows.filter(r => riskTier(r.prob) === "HIGH").length;
   document.getElementById("alertBadge").textContent = highRiskCount;
@@ -345,19 +475,53 @@
     legend.appendChild(row);
   });
 
-  // weekly revenue bar chart with a callout on the lowest week
+  // weekly revenue bar chart -- hovering a bar splits it into fulfilled/lost-to-
+  // stockout segments with a tooltip pill, matching the reference component's
+  // interaction (bar + split segments + dark callout with dot-bulleted rows)
   const barWrap = document.getElementById("revBarChart");
   const maxRev = Math.max(...DATA.weeklyRevenue.map(w=>w.value));
-  const minRev = Math.min(...DATA.weeklyRevenue.map(w=>w.value));
-  DATA.weeklyRevenue.forEach(w=>{
-    const col = document.createElement("div"); col.className = "bar-col";
-    const h = 20 + (w.value/maxRev)*130;
-    const isLow = w.value === minRev;
-    col.innerHTML = `${isLow ? `<div class="callout">Lowest week: ${fmtINR(w.value)}</div>` : ""}
-      <div class="bar${isLow ? " hi" : ""}" style="height:${h}px"></div>
-      <div class="label">${w.label}</div>`;
-    barWrap.appendChild(col);
-  });
+  const defaultActive = DATA.weeklyRevenue.reduce(
+    (best,w,i,arr)=> w.lostPct > arr[best].lostPct ? i : best, 0
+  );
+  let activeIdx = defaultActive;
+
+  // Build every column's DOM once, callout and both segments always present
+  // (sized with their real height % up front). Hovering only toggles the
+  // `is-active` class on existing elements, which is what lets the CSS
+  // opacity/transform transitions actually animate instead of snapping --
+  // rebuilding innerHTML per hover (an earlier version of this function)
+  // gives the browser a brand-new element each time, so there is nothing
+  // for a transition to interpolate from.
+  function buildBars(){
+    barWrap.innerHTML = "";
+    DATA.weeklyRevenue.forEach((w,i)=>{
+      const h = 34 + (w.value/maxRev)*146;
+      const col = document.createElement("div");
+      col.className = "bar-col";
+      col.dataset.idx = i;
+      col.innerHTML = `
+        <div class="callout"><b>${w.label}</b>
+          <div class="row"><span class="dot" style="background:var(--surface); border:1px solid var(--ink);"></span>Fulfilled ${fmtINR(w.value)}</div>
+          <div class="row"><span class="dot" style="background:var(--accent);"></span>Lost to stock-out ${fmtINR(w.lost)}</div>
+        </div>
+        <div class="bar" style="height:${h}px">
+          <div class="seg top" style="height:${w.fulfilledPct}%">${w.fulfilledPct}%</div>
+          <div class="seg bottom" style="height:${w.lostPct}%">${w.lostPct}%</div>
+        </div>
+        <div class="label">${w.label}</div>`;
+      col.addEventListener("mouseenter", ()=> setActiveBar(i));
+      barWrap.appendChild(col);
+    });
+  }
+  function setActiveBar(i){
+    activeIdx = i;
+    barWrap.querySelectorAll(".bar-col").forEach(col=>{
+      col.classList.toggle("is-active", Number(col.dataset.idx) === i);
+    });
+  }
+  buildBars();
+  setActiveBar(defaultActive);
+  barWrap.addEventListener("mouseleave", ()=> setActiveBar(defaultActive));
 
   // city stock-out bar chart
   const cityWrap = document.getElementById("cityBarChart");

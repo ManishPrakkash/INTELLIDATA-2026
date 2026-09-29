@@ -93,3 +93,17 @@ feature crosses.
 ## Stock-Out Classification (Model 2)
 
 _Section to be completed by Student 3._
+
+## Model 2 -- Stock-out Risk Classification (Student 3)
+
+        model  cv_f1_mean  test_accuracy  test_precision  test_recall  test_f1  test_roc_auc
+Random Forest       1.000          1.000           1.000        1.000    1.000         1.000
+Decision Tree       0.990          0.999           1.000        0.997    0.999         0.999
+      XGBoost       0.984          0.997           0.989        1.000    0.994         1.000
+
+**Selected model:** Random Forest. Justification: highest F1 on the untouched final holdout
+(last 14 days), balancing precision (don't cry wolf on every SKU) against recall (don't
+miss real stock-outs) -- both a missed stock-out and a false alarm carry a real business
+cost, so F1 is fairer to optimize than Accuracy or Recall alone. Class imbalance (~16%
+positive) handled via class_weight='balanced'
+rather than SMOTE, per docs/RESEARCH.md §6.
