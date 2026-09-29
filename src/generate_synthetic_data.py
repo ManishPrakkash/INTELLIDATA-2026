@@ -1,4 +1,4 @@
-"""
+k"""
 Synthetic data generator for StockSense (IntelliData 2026).
 
 Produces transactions.csv, products.csv, stores.csv, inventory.csv and
@@ -98,7 +98,7 @@ def make_category_variant(cat: str) -> str:
     """Randomly mangle category casing/spacing to simulate the inconsistency trap."""
     variants = [cat, cat.upper(), cat.lower(), f" {cat}", cat.replace(" ", "")]
     return random.choice(variants)
-
+ 
 
 def gen_products(n_products: int, rng: random.Random) -> pd.DataFrame:
     rows = []

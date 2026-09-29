@@ -3,7 +3,7 @@
 
 You turn two models into a decision a store manager will actually act on, and you build the artifact the judges will click through and remember. This role carries most of the "out of the box" differentiation — own it with that in mind.
 
-Read first: [root plan](../../README.md) §3 (differentiation strategy — this is largely your job to implement), and [`docs/RESEARCH.md`](../RESEARCH.md) §4 (ABC-XYZ), §5 (newsvendor), §6 (imbalance), §7 (explainability), §8 (dashboard patterns).
+Read first: [root plan](../../README.md) §3 (differentiation strategy — this is largely your job to implement), [`docs/RESEARCH.md`](../RESEARCH.md) §4 (ABC-XYZ), §5 (newsvendor), §6 (imbalance), §7 (explainability), §8 (dashboard patterns), and **[`PROTOTYPE_STRATEGY.md`](PROTOTYPE_STRATEGY.md) — the plan for making the dashboard not look like every other team's Streamlit build.**
 
 Your outputs, exactly:
 - `data/processed/stockout_labels.csv`
@@ -71,6 +71,8 @@ This is your headline differentiator (RESEARCH.md §4–§5). Build `src/recomme
 Receive frozen `feature_table.csv` + `demand_model.pkl` from Student 2. Wire real predictions into your recommendation engine and dashboard, replacing placeholder data.
 
 ### Hour 13–20 — Dashboard Build (Round 3 core)
+
+**Before you start building, read [`PROTOTYPE_STRATEGY.md`](PROTOTYPE_STRATEGY.md).** The six sections below are still mandatory, but *how* they're presented is what separates this from a generic Streamlit build — exception-first home screen, styled alert-style cards instead of `st.dataframe`, a rule-based "Ask the Copilot" box, and a judge-facing Present Mode. Build the sections' content first using the table below, then apply that presentation layer.
 
 Build `dashboard/app.py` in Streamlit with exactly these tabs/sections (mandatory minimum from the brief):
 
