@@ -199,9 +199,15 @@ def gen_transactions_and_inventory(products: pd.DataFrame, dates, rng: random.Ra
             pid = prod["product_id"]
             base_demand = rng.uniform(5, 40) * (1.6 if store_type == "Hypermarket" else 1.0)
             trend = rng.uniform(-0.01, 0.02)
-            opening = rng.randint(80, 400)
-            reorder_lvl = int(base_demand * rng.uniform(4, 8))
-            lead_days = rng.choice([1, 1, 2, 3, 4])
+            # Thin buffer (~2-5 days of demand) + a real lead-time delay on reorders below
+            # is what makes stock-outs a genuine, learnable event instead of a near-never
+            # occurrence -- see docs/DATA_SOURCES.md discussion / README "is this dataset
+            # enough" note for why this matters for Model 2 (stock-out classification).
+            opening = int(base_demand * rng.uniform(2, 5))
+            reorder_lvl = int(base_demand * rng.uniform(3, 5))
+            lead_days = rng.choice([1, 2, 2, 3, 4, 5])
+            order_qty_days = rng.uniform(5, 9)  # days-of-demand covered by each replenishment
+            pending_orders = []  # list of [arrival_day_index, qty]
 
             start_idx = 0
             if pid in sparse_products:
@@ -215,11 +221,14 @@ def gen_transactions_and_inventory(products: pd.DataFrame, dates, rng: random.Ra
                 seasonal = 1 + 0.25 * np.sin(i / 7) + trend * i
                 weekend_mult = 1.3 if weekend else 1.0
                 promo_mult = 1.35 if promo else 1.0
-                demand = max(0, rng.gauss(base_demand * seasonal * weekend_mult * promo_mult, base_demand * 0.25))
+                demand = max(0, rng.gauss(base_demand * seasonal * weekend_mult * promo_mult, base_demand * 0.35))
                 demand = int(round(demand))
 
-                sellable = min(demand, opening)
-                stockout = sellable < demand and opening <= 0
+                # stock arriving today from an order placed `lead_days` ago
+                received = sum(qty for arrival, qty in pending_orders if arrival == i)
+                pending_orders = [[a, q] for a, q in pending_orders if a != i]
+                available = opening + received
+                sellable = min(demand, available)
                 mrp = prod["mrp"]
                 price = round(mrp * (1 - discount / 100), 2)
 
@@ -257,10 +266,15 @@ def gen_transactions_and_inventory(products: pd.DataFrame, dates, rng: random.Ra
                         bad["quantity"] = -abs(qty)
                         tx_rows.append(bad)
 
-                received = 0
-                if opening <= reorder_lvl or rng.random() < 0.1:
-                    received = int(base_demand * rng.uniform(3, 6))
-                closing = max(0, opening + received - sellable)
+                closing = max(0, available - sellable)
+
+                # place a new order if stock has dropped to/below reorder level and
+                # nothing is already in transit -- arrives after this product's real
+                # lead_days, so a demand spike while an order is in flight can genuinely
+                # cause a stock-out (this is what makes stockout_flag a learnable target)
+                if closing <= reorder_lvl and not pending_orders:
+                    qty = max(1, int(base_demand * order_qty_days))
+                    pending_orders.append([i + lead_days, qty])
 
                 # inventory-mismatch trap: ~3% of rows get a corrupted closing value
                 closing_reported = closing

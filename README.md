@@ -141,8 +141,8 @@ To make sure nobody is idle waiting for it, `data/raw/` is **already populated**
 
 | File | Rows | Notes |
 |---|---|---|
-| `transactions.csv` | 73,706 | 2026-08-01 → 2027-01-28 (180 days), 4 stores × 60 products |
-| `inventory.csv` | 38,997 | daily store×product stock ledger |
+| `transactions.csv` | 66,759 | 2026-08-01 → 2027-01-27 (180 days), 4 stores × 60 products |
+| `inventory.csv` | 39,001 | daily store×product stock ledger, with **lead-time-delayed replenishment** (orders arrive after each product's real `lead_days`, not instantly) so stock-outs are a genuine, learnable event rather than a rounding-error rarity |
 | `products.csv` | 60 | 6 categories, casing intentionally inconsistent (see below) |
 | `stores.csv` | 4 | S01 Coimbatore, S02 Chennai, S03 Madurai, S04 Salem — matches the brief exactly |
 | `external_factors.csv` | 720 | daily × city weather/holiday/festival/event flags — **grounded in the real 2026–27 Tamil Nadu holiday calendar and real climate normals for these four cities**, not random noise; full citations in [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) |
@@ -151,13 +151,17 @@ Injected data-quality traps present right now (Student 1 will find and handle th
 
 | Trap | Count found |
 |---|---|
-| Duplicate `transaction_id` rows | 744 |
-| Impossible (negative) `quantity` rows | 381 |
-| Inventory arithmetic mismatches (`closing ≠ opening+received-sold`) | 1,202 |
-| Missing `temp_c` values | 19 / 720 (2.6%) |
-| Category casing/spacing variants (e.g. `Beverages` / `BEVERAGES` / ` Dairy` / `PersonalCare`) | 20 distinct raw strings across 6 true categories |
-| Zero-closing-stock (stock-out) rows | 38 |
+| Duplicate `transaction_id` rows | 657 |
+| Impossible (negative) `quantity` rows | 341 |
+| Inventory arithmetic mismatches (`closing ≠ opening+received-sold`) | 1,100 |
+| Missing `temp_c` values | 23 / 720 (3.2%) |
+| Category casing/spacing variants (e.g. `Beverages` / `BEVERAGES` / ` Dairy` / `PersonalCare`) | 21 distinct raw strings across 6 true categories — note `PersonalCare` (no space) survives a naive `.str.lower().str.strip()` clean and still won't merge with `Personal Care`; Student 1 needs a stronger normalization (strip non-alphanumerics too) |
+| Zero-closing-stock (stock-out) rows | 6,189 (**15.87%** overall; per-SKU rate ranges from 0% to 100%, median 6.4% — realistic heterogeneity, not a rare-event problem) |
 | Sparse-history products (<14 days of transaction data) | 6 / 60 |
+
+**Why the stock-out rate matters:** an earlier version of this generator replenished stock instantly whenever it ran low, which made real stock-outs occur in well under 0.1% of rows — statistically useless for training/evaluating Model 2 (a test fold could easily contain zero positive examples). Replenishment now has a real lead-time delay per product, so a demand spike while an order is in transit can genuinely cause a stock-out — the ~16% rate this produces is in line with typical retail stock-out benchmarks and gives Model 2 something real to learn.
+
+**Known, inherent limitation (not fixable, matches the real brief):** the brief's own sample `stores.csv` lists exactly these four stores — S02 is the only Hypermarket and S03 the only Express store. Any "does demand differ by store type" statistical test is therefore partially confounded with the individual store's own effect, not store type in the abstract, for two of the three types. Disclose this explicitly in `reports/statistical_tests.md` rather than treating the ANOVA result as a clean answer — the real event data will very likely have the same limitation.
 
 **When the real NovaMart CSVs are handed out at the event:** drop them into `data/raw/`, overwriting the practice files (same filenames, same schema per [`DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md)). Every notebook and script downstream is schema-driven, not hardcoded to these specific values, so the switch should require zero code changes — only a re-run.
 
