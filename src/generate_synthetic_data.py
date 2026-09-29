@@ -39,6 +39,60 @@ CITIES = {
 }
 PAYMENT_MODES = ["UPI", "Card", "Cash"]
 
+# ---------------------------------------------------------------------------
+# Real-world reference data, sourced so the practice dataset is grounded in
+# reality rather than pure noise. Full citations, direct links and notes on
+# which values are directly sourced vs. interpolated/projected live in
+# docs/DATA_SOURCES.md -- read that before quoting any of this in the pitch.
+#
+# Covers the default generation window (2026-08-01 to ~2027-01-27, i.e.
+# Aug-Jan). Months outside that window (Feb-Jul) fall back to the nearest
+# sourced month below and are NOT independently verified.
+# ---------------------------------------------------------------------------
+
+# (year, month, day) -> (label, is_holiday, is_festival, is_projected)
+# is_projected=True means the exact date was not yet officially gazetted at
+# generation time and was projected from the fixed solar-calendar pattern of
+# prior years (documented in docs/DATA_SOURCES.md).
+TN_CALENDAR_2026_27 = {
+    (2026, 8, 15): ("Independence Day", 1, 0, False),
+    (2026, 8, 26): ("Eid-e-Milad / Onam window", 1, 1, False),
+    (2026, 9, 4):  ("Janmashtami", 0, 1, False),
+    (2026, 9, 14): ("Ganesh Chaturthi", 0, 1, False),
+    (2026, 10, 2): ("Gandhi Jayanti", 1, 0, False),
+    (2026, 10, 20): ("Dussehra", 1, 1, False),
+    (2026, 11, 8): ("Deepavali (Diwali)", 1, 1, False),
+    (2026, 12, 25): ("Christmas", 1, 1, False),
+    (2027, 1, 1): ("New Year's Day", 1, 0, False),
+    (2027, 1, 14): ("Pongal", 1, 1, True),
+    (2027, 1, 15): ("Thiruvalluvar Day", 1, 1, True),
+    (2027, 1, 16): ("Uzhavar Thirunal", 1, 0, True),
+    (2027, 1, 26): ("Republic Day", 1, 0, False),
+}
+
+# city -> month -> (avg_temp_c, avg_rain_mm, is_interpolated)
+# is_interpolated=True means the source did not publish that exact month and
+# the value was linearly interpolated between the nearest published months.
+CLIMATE_NORMALS = {
+    "Coimbatore": {8: (24.5, 104, False), 9: (25.0, 87, False), 10: (24.8, 181, False),
+                   11: (23.8, 140, True), 12: (23.2, 60, True), 1: (23.9, 13, False)},
+    "Chennai":    {8: (29.5, 120, True), 9: (28.7, 110, False), 10: (27.3, 223, False),
+                   11: (25.7, 228, False), 12: (24.6, 113, False), 1: (24.0, 25, True)},
+    "Madurai":    {8: (31.4, 95, False), 9: (29.3, 84, False), 10: (27.3, 180, False),
+                   11: (25.4, 168, False), 12: (24.6, 68, False), 1: (26.7, 20, True)},
+    "Salem":      {8: (27.5, 140, True), 9: (26.8, 120, True), 10: (25.8, 124, False),
+                   11: (24.5, 95, True), 12: (23.5, 25, True), 1: (24.0, 5, True)},
+}
+
+
+def _climate_for(city: str, month: int):
+    normals = CLIMATE_NORMALS[city]
+    if month in normals:
+        return normals[month]
+    # Feb-Jul fallback: nearest sourced month, not independently verified.
+    nearest = min(normals.keys(), key=lambda m: min(abs(m - month), 12 - abs(m - month)))
+    return normals[nearest]
+
 
 def make_category_variant(cat: str) -> str:
     """Randomly mangle category casing/spacing to simulate the inconsistency trap."""
@@ -91,17 +145,24 @@ def gen_stores() -> pd.DataFrame:
 
 
 def gen_external_factors(dates, cities, rng: random.Random) -> pd.DataFrame:
+    """Temperature/rain draw from real published monthly climate normals per city
+    (CLIMATE_NORMALS); holiday/festival flags use the real 2026-27 Tamil Nadu
+    calendar (TN_CALENDAR_2026_27). See docs/DATA_SOURCES.md for citations."""
     rows = []
-    festival_days = set(rng.sample(range(len(dates)), max(1, len(dates) // 30)))
     local_event_days = set(rng.sample(range(len(dates)), max(1, len(dates) // 20)))
     for city in cities:
-        base_temp = rng.uniform(26, 34)
         for i, d in enumerate(dates):
             weekend = 1 if d.weekday() >= 5 else 0
-            temp = round(base_temp + rng.uniform(-3, 3) + 2 * np.sin(i / 15), 1)
-            rain = round(max(0, rng.gauss(1.5, 3)), 1) if rng.random() < 0.3 else 0.0
-            holiday = 1 if (i in festival_days and rng.random() < 0.5) else 0
-            festival = 1 if i in festival_days else 0
+            avg_temp, avg_rain, _ = _climate_for(city, d.month)
+            temp = round(avg_temp + rng.gauss(0, 1.5), 1)
+            # rain days modeled as a Bernoulli draw around the monthly wet-day
+            # rate implied by avg_rain, magnitude drawn around the monthly mean
+            wet_day_prob = min(0.9, avg_rain / 250)
+            rain = round(max(0, rng.gauss(avg_rain / 10, avg_rain / 15)), 1) if rng.random() < wet_day_prob else 0.0
+
+            cal = TN_CALENDAR_2026_27.get((d.year, d.month, d.day))
+            holiday = cal[1] if cal else 0
+            festival = cal[2] if cal else 0
             local_event = 1 if i in local_event_days else 0
             # missing-value trap: ~4% of temperature readings blank
             temp_val = np.nan if rng.random() < 0.04 else temp

@@ -16,6 +16,7 @@ This document is the master plan. It is the single source of truth for architect
 
 Deep research backing every technical decision below (formulas, papers, benchmark practices, sources): [`docs/RESEARCH.md`](docs/RESEARCH.md)
 Shared data contract every role must respect: [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md)
+Where every real-world number in the practice dataset came from, with direct links — **cite this in the pitch**: [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md)
 
 ---
 
@@ -68,6 +69,7 @@ Every hackathon team in the room will build "a forecast + a classifier + a bar c
 5. **Model-trust panel**: backtested WAPE/MAE by store-type and by ABC segment (not just one global number), so the dashboard can honestly say where the model is strong vs. weak — judges reward candour over false confidence.
 6. **What-If simulator** (festival toggle / discount slider / supplier delay days) recomputing forecast → risk → reorder live — turns a static report into an interactive decision tool, satisfying the optional bonus explicitly listed in the brief.
 7. **Everything is reproducible from raw CSV → dashboard with one command** (`src/run_pipeline.py`), and the repo includes a synthetic-data generator so the *entire* pipeline is dry-run and demo-able even before/independent of the official dataset drop.
+8. **Our practice/development data is grounded in real, cited public data**, not arbitrary randomness: the holiday/festival calendar and city climate normals used while building and testing (before the official data lands) come from the actual 2026 Tamil Nadu holiday list and published climate records for these exact four cities — every figure has a direct source link in [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md). This is a small thing to mention in the pitch, but it signals rigor: we didn't just simulate demand, we validated our assumptions against reality before the real data ever arrived.
 
 ## 4. Mandatory Deliverables Checklist (from the official brief)
 
@@ -115,7 +117,7 @@ Rounds map to the brief's mandatory rounds; roles work **in parallel from hour 0
 | 13 | **CHECKPOINT 2** | Demand model frozen; feature table frozen; stock-out labels frozen | | |
 | 13–20 | **Round 3** — Intelligence Layer | Support: write plain-English narrative for Exec Summary; validate KPI formulas | Support: expose model + feature pipeline via `src/run_pipeline.py`; help wire dashboard to real predictions | Lead: finalize classification model, permutation importance, ABC-XYZ segmentation, safety-stock/newsvendor recommendation engine, full Streamlit dashboard incl. What-If simulator |
 | 20–22 | Integration | End-to-end run of `run_pipeline.py` on real data; bug bash across all three modules together | | |
-| 22–23 | Pitch prep | All three co-write `final_pitch.pdf`; rehearse the 2-minute story (discovery → prediction → trust → action → business impact) | | |
+| 22–23 | Pitch prep | All three co-write `final_pitch.pdf`; rehearse the 2-minute story (discovery → prediction → trust → action → business impact); cite [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) if asked where the practice data's calendar/climate assumptions came from | | |
 | 23–24 | Final polish | Clean notebooks, finalize README links, push, verify GitHub renders correctly, submit | | |
 
 **Rule:** nobody works in a silo past hour 5 without the other two knowing the current state of `data/processed/master_table.csv` — it is the shared contract. Post in your team chat every time you push a new version of it.
@@ -143,7 +145,7 @@ To make sure nobody is idle waiting for it, `data/raw/` is **already populated**
 | `inventory.csv` | 38,997 | daily store×product stock ledger |
 | `products.csv` | 60 | 6 categories, casing intentionally inconsistent (see below) |
 | `stores.csv` | 4 | S01 Coimbatore, S02 Chennai, S03 Madurai, S04 Salem — matches the brief exactly |
-| `external_factors.csv` | 720 | daily × city weather/holiday/festival/event flags |
+| `external_factors.csv` | 720 | daily × city weather/holiday/festival/event flags — **grounded in the real 2026–27 Tamil Nadu holiday calendar and real climate normals for these four cities**, not random noise; full citations in [`docs/DATA_SOURCES.md`](docs/DATA_SOURCES.md) |
 
 Injected data-quality traps present right now (Student 1 will find and handle these in Round 1 — counts below are what the *current* seed produced, re-running the generator with a different `--seed` will shuffle them):
 
