@@ -1,0 +1,401 @@
+<title>StockSense</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ============================================================
+     TOKENS
+     Layout: icon rail + top bar, 12-col main grid (3 KPI + 1 donut
+     panel on row 1, chart + city-risk panel row 2, table row 3),
+     collapsing to a single column under 720px.
+     ============================================================ */
+  :root{
+    --bg:#F4F1EC; --surface:#FFFFFF; --surface-alt:#ECE8E1;
+    --ink:#18140F; --ink-soft:#726C61; --border:#E3DFD6;
+    --accent:#FF5A1F; --accent-ink:#FFFFFF; --accent-soft:#FFE4D6;
+    --risk-high:#C81E3A; --risk-medium:#B8860B; --risk-low:#1E8E5A;
+    --radius:18px; --radius-sm:12px;
+    font-size:15px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#14110D; --surface:#1E1A15; --surface-alt:#262019;
+      --ink:#F4F1EC; --ink-soft:#A79E90; --border:#332C23;
+      --accent:#FF7A45; --accent-ink:#1A0D06; --accent-soft:#3A2013;
+      --risk-high:#FF5470; --risk-medium:#E0A83E; --risk-low:#34D399;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#14110D; --surface:#1E1A15; --surface-alt:#262019;
+    --ink:#F4F1EC; --ink-soft:#A79E90; --border:#332C23;
+    --accent:#FF7A45; --accent-ink:#1A0D06; --accent-soft:#3A2013;
+    --risk-high:#FF5470; --risk-medium:#E0A83E; --risk-low:#34D399;
+    color-scheme:dark;
+  }
+
+  *{box-sizing:border-box;}
+  body{background:var(--bg); color:var(--ink); font-family:"Inter",system-ui,-apple-system,sans-serif;
+       font-variant-numeric:tabular-nums; padding:0 16px;}
+  h1,h2,h3{text-wrap:balance; margin:0;}
+  ::selection{background:var(--accent-soft);}
+
+  .app{max-width:1280px; margin:0 auto; display:grid; grid-template-columns:64px 1fr; gap:20px; padding-block:16px;}
+  @media (max-width:720px){ .app{grid-template-columns:1fr;} .rail{display:none;} }
+
+  /* icon rail */
+  .rail{display:flex; flex-direction:column; align-items:center; gap:10px; padding-top:4px;}
+  .rail .logo{width:40px; height:40px; border-radius:12px; background:var(--accent); color:var(--accent-ink);
+              display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.1em; margin-bottom:14px;}
+  .rail button{width:40px; height:40px; border-radius:12px; border:1px solid transparent; background:transparent;
+               color:var(--ink-soft); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .rail button.active{background:var(--surface); color:var(--accent); border-color:var(--border); box-shadow:0 1px 2px rgba(0,0,0,.06);}
+  .rail button:hover{color:var(--ink);}
+  .rail .spacer{flex:1;}
+
+  /* top bar */
+  .topbar{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; gap:12px; flex-wrap:wrap;}
+  .brand{display:flex; flex-direction:column; line-height:1.15;}
+  .brand b{font-size:1.15em; font-weight:800;}
+  .brand span{font-size:.8em; color:var(--ink-soft);}
+  .topbar-right{display:flex; align-items:center; gap:10px;}
+  .pill-select{border:1px solid var(--border); background:var(--surface); border-radius:999px; padding:8px 14px;
+               font:inherit; color:var(--ink); font-weight:600; font-size:.85em;}
+  .icon-btn{width:38px; height:38px; border-radius:50%; border:1px solid var(--border); background:var(--surface);
+            display:flex; align-items:center; justify-content:center; position:relative; cursor:pointer; color:var(--ink-soft);}
+  .badge{position:absolute; top:-4px; right:-4px; background:var(--risk-high); color:#fff; font-size:.65em; font-weight:700;
+         border-radius:999px; min-width:16px; height:16px; display:flex; align-items:center; justify-content:center; padding:0 3px;}
+  .avatar{width:38px; height:38px; border-radius:50%; background:var(--surface-alt); display:flex; align-items:center;
+          justify-content:center; font-weight:700; font-size:.85em; border:1px solid var(--border);}
+
+  /* grid */
+  .grid{display:grid; grid-template-columns:repeat(12,1fr); gap:16px;}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr 1fr;} }
+  @media (max-width:520px){ .grid{grid-template-columns:1fr;} }
+
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px;}
+  .card.alt{background:var(--surface-alt); border-color:transparent;}
+  .card.accent{background:var(--accent); color:var(--accent-ink); border-color:transparent;}
+  .card.dark{background:var(--ink); color:var(--bg); border-color:transparent;}
+  .card-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;}
+  .card-head h3{font-size:.85em; font-weight:600; opacity:.85;}
+  .stat{font-size:2em; font-weight:800; line-height:1.1;}
+  .trend{font-size:.78em; font-weight:700; padding:2px 7px; border-radius:999px; display:inline-flex; align-items:center; gap:3px;}
+  .trend.up{background:rgba(30,142,90,.15); color:var(--risk-low);}
+  .trend.down{background:rgba(200,30,58,.15); color:var(--risk-high);}
+  .card.accent .trend, .card.dark .trend{background:rgba(255,255,255,.18); color:inherit;}
+  .sub{font-size:.78em; opacity:.75; margin-top:4px;}
+
+  .kpi-col{grid-column:span 3;}
+  @media (max-width:900px){ .kpi-col{grid-column:span 1;} }
+  .panel-col{grid-column:span 3;}
+  @media (max-width:900px){ .panel-col{grid-column:span 2;} }
+  @media (max-width:520px){ .panel-col{grid-column:span 1;} }
+  .wide-col{grid-column:span 8;}
+  @media (max-width:900px){ .wide-col{grid-column:span 2;} }
+  @media (max-width:520px){ .wide-col{grid-column:span 1;} }
+  .full-col{grid-column:span 12;}
+
+  /* weekday heat strip */
+  .heatstrip{display:flex; gap:4px; margin-top:10px;}
+  .heatstrip .cell{flex:1; height:28px; border-radius:6px; display:flex; align-items:flex-end; justify-content:center;
+                   font-size:.6em; padding-bottom:2px; color:#fff; opacity:.9;}
+
+  /* donut */
+  .donut-wrap{display:flex; align-items:center; gap:16px;}
+  .donut{width:110px; height:110px; border-radius:50%; flex:none; position:relative;}
+  .donut::after{content:""; position:absolute; inset:20%; border-radius:50%; background:var(--surface);}
+  .legend{display:flex; flex-direction:column; gap:6px; font-size:.8em;}
+  .legend .row{display:flex; align-items:center; gap:6px;}
+  .legend .dot{width:8px; height:8px; border-radius:50%; flex:none;}
+  .legend .val{margin-left:auto; font-weight:700;}
+
+  /* bar chart (hatched, echoes the reference's textured bars) */
+  .barchart{display:flex; align-items:flex-end; gap:10px; height:180px; margin-top:14px; position:relative;}
+  .barchart .bar-col{flex:1; display:flex; flex-direction:column; align-items:center; height:100%; justify-content:flex-end; gap:6px; position:relative;}
+  .barchart .bar{width:100%; border-radius:6px 6px 2px 2px; background:
+      repeating-linear-gradient(135deg, var(--accent-soft), var(--accent-soft) 4px, transparent 4px, transparent 8px),
+      var(--surface-alt); border:1px solid var(--border); position:relative;}
+  .barchart .bar.hi{background:
+      repeating-linear-gradient(135deg, rgba(255,255,255,.35), rgba(255,255,255,.35) 4px, transparent 4px, transparent 8px),
+      var(--accent);}
+  .barchart .label{font-size:.72em; color:var(--ink-soft);}
+  .callout{position:absolute; bottom:100%; margin-bottom:8px; background:var(--ink); color:var(--bg); font-size:.72em;
+           padding:6px 9px; border-radius:8px; white-space:nowrap; font-weight:600; left:50%; transform:translateX(-50%);}
+  .callout::after{content:""; position:absolute; top:100%; left:50%; transform:translateX(-50%); border:5px solid transparent; border-top-color:var(--ink);}
+
+  .citybar{display:flex; align-items:flex-end; gap:14px; height:150px; margin-top:14px;}
+  .citybar .col{flex:1; display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px;}
+  .citybar .fill{width:60%; border-radius:6px 6px 2px 2px;}
+  .citybar .pct{font-size:.78em; font-weight:700;}
+  .citybar .city{font-size:.72em; color:var(--ink-soft);}
+
+  /* table */
+  table{width:100%; border-collapse:collapse; font-size:.88em;}
+  th{text-align:left; font-weight:600; color:var(--ink-soft); font-size:.82em; padding:8px 10px; border-bottom:1px solid var(--border);}
+  td{padding:10px 10px; border-bottom:1px solid var(--border);}
+  tr:last-child td{border-bottom:none;}
+  .risk-pill{display:inline-flex; align-items:center; gap:5px; font-weight:700; font-size:.85em; padding:3px 9px; border-radius:999px;}
+  .risk-pill .dot{width:6px; height:6px; border-radius:50%;}
+  .risk-pill.HIGH{background:rgba(200,30,58,.12); color:var(--risk-high);}
+  .risk-pill.MEDIUM{background:rgba(184,134,11,.14); color:var(--risk-medium);}
+  .risk-pill.HIGH .dot{background:var(--risk-high);}
+  .risk-pill.MEDIUM .dot{background:var(--risk-medium);}
+  .table-scroll{overflow-x:auto;}
+  .table-head-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; gap:10px; flex-wrap:wrap;}
+  .btn{background:var(--ink); color:var(--bg); border:none; border-radius:10px; padding:9px 16px; font:inherit;
+       font-weight:700; font-size:.85em; cursor:pointer; display:inline-flex; align-items:center; gap:6px;}
+  .btn:active{transform:translateY(1px);}
+  .footnote{font-size:.76em; color:var(--ink-soft); margin-top:8px;}
+</style>
+
+<div class="app">
+  <div class="rail">
+    <div class="logo">S</div>
+    <button class="active" title="Overview">▣</button>
+    <button title="Products">◫</button>
+    <button title="Stores">⌂</button>
+    <button title="Reports">▤</button>
+    <button title="Replenishment">➤</button>
+    <div class="spacer"></div>
+    <button title="Settings">⚙</button>
+  </div>
+
+  <div>
+    <div class="topbar">
+      <div class="brand"><b>StockSense</b><span>NovaMart Ops · demand &amp; stock-out intelligence</span></div>
+      <div class="topbar-right">
+        <select class="pill-select" id="regionSelect">
+          <option>All Regions</option>
+          <option>Coimbatore</option>
+          <option>Chennai</option>
+          <option>Madurai</option>
+          <option>Salem</option>
+        </select>
+        <button class="icon-btn" title="Search">⌕</button>
+        <button class="icon-btn" title="Alerts">🔔<span class="badge" id="alertBadge">0</span></button>
+        <div class="avatar">NM</div>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card alt kpi-col">
+        <div class="card-head"><h3>Network Revenue</h3></div>
+        <div class="stat" id="statRevenue">—</div>
+        <div class="sub"><span class="trend" id="trendRevenue">—</span> last 4 weeks vs prior 4</div>
+      </div>
+
+      <div class="card accent kpi-col">
+        <div class="card-head"><h3>Estimated Lost Sales</h3></div>
+        <div class="stat" id="statLostSales">—</div>
+        <div class="sub" id="subLostSales">—</div>
+      </div>
+
+      <div class="card dark kpi-col">
+        <div class="card-head"><h3>Network Stock-out Rate</h3></div>
+        <div class="stat" id="statStockout">—</div>
+        <div class="heatstrip" id="heatStrip"></div>
+      </div>
+
+      <div class="card panel-col">
+        <div class="card-head"><h3>Category Revenue Share</h3></div>
+        <div class="donut-wrap">
+          <div class="donut" id="donut"></div>
+          <div class="legend" id="donutLegend"></div>
+        </div>
+      </div>
+
+      <div class="card wide-col">
+        <div class="card-head"><h3>Weekly Revenue Trend</h3></div>
+        <div class="barchart" id="revBarChart"></div>
+      </div>
+
+      <div class="card panel-col" style="grid-column:span 4;">
+        <div class="card-head"><h3>Stock-out Rate by City</h3></div>
+        <div class="citybar" id="cityBarChart"></div>
+      </div>
+
+      <div class="card full-col">
+        <div class="table-head-row">
+          <h3 style="font-size:.95em;">Priority Reorder List</h3>
+          <button class="btn" id="copyBtn">⧉ Copy Action List</button>
+        </div>
+        <div class="table-scroll">
+          <table>
+            <thead><tr>
+              <th>Store · City</th><th>Product</th><th>Category</th><th>Current Stock</th>
+              <th>7-Day Forecast</th><th>Stock-out Freq.</th><th>Risk</th><th>Recommended Order</th>
+            </tr></thead>
+            <tbody id="tableBody"></tbody>
+          </table>
+        </div>
+        <div class="footnote">Stock-out Freq. is each product's historical closing-stock-zero rate, computed directly
+          from data/processed/master_table.csv — a real, data-grounded proxy standing in until Model 2
+          (models/stockout_model.pkl) is trained and wired in, at which point this column becomes the model's
+          predicted probability.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ---- real data, computed from data/processed/master_table.csv + abc_xyz_analysis.csv ----
+  const DATA = {
+    revenue: 14547038,
+    revenuePrev4wk: 2022549, // real: sum of the 4 full weeks before revenueLast4wk
+    revenueLast4wk: 1810683, // real: last 4 full weeks (partial in-progress week excluded)
+    unitsSold: 192719,
+    stockoutRate: 0.1587,
+    estimatedLostSales: 1711577,
+    weekdayStockout: [0.1849, 0.1638, 0.1431, 0.1241, 0.1301, 0.1639, 0.1983], // Mon..Sun, real per-weekday mean
+    categoryShare: [
+      {label:"Household", value:20.5},
+      {label:"Snacks", value:19.4},
+      {label:"Personal Care", value:19.2},
+      {label:"Dairy", value:18.4},
+      {label:"Beverages", value:16.0},
+      {label:"Frozen", value:6.4},
+    ],
+    weeklyRevenue: [
+      {label:"Nov 22", value:548787},
+      {label:"Nov 29", value:501195},
+      {label:"Dec 06", value:467882},
+      {label:"Dec 13", value:514821},
+      {label:"Dec 20", value:518199},
+      {label:"Dec 27", value:521647},
+      {label:"Jan 03", value:478553},
+      {label:"Jan 10", value:439731},
+      {label:"Jan 17", value:430953},
+      {label:"Jan 24", value:461446},
+    ],
+    cityStockout: [
+      {city:"Chennai", pct:21.3},
+      {city:"Salem", pct:14.6},
+      {city:"Madurai", pct:14.5},
+      {city:"Coimbatore", pct:13.1},
+    ],
+    priorityRows: [
+      {store:"S01", city:"Coimbatore", product:"P136", category:"Personal Care", stock:0, forecast:36, prob:1.00, reorder:47},
+      {store:"S02", city:"Chennai", product:"P148", category:"Dairy", stock:0, forecast:23, prob:1.00, reorder:30},
+      {store:"S03", city:"Madurai", product:"P129", category:"Beverages", stock:0, forecast:41, prob:0.71, reorder:53},
+      {store:"S04", city:"Salem", product:"P155", category:"Dairy", stock:0, forecast:49, prob:0.67, reorder:64},
+      {store:"S04", city:"Salem", product:"P136", category:"Personal Care", stock:0, forecast:77, prob:0.67, reorder:100},
+      {store:"S02", city:"Chennai", product:"P114", category:"Beverages", stock:0, forecast:50, prob:0.64, reorder:65},
+      {store:"S04", city:"Salem", product:"P119", category:"Dairy", stock:0, forecast:35, prob:0.62, reorder:46},
+      {store:"S02", city:"Chennai", product:"P108", category:"Snacks", stock:0, forecast:47, prob:0.62, reorder:61},
+    ],
+  };
+
+  const fmtINR = n => {
+    if (n >= 1e7) return "₹" + (n/1e7).toFixed(2) + "Cr";
+    if (n >= 1e5) return "₹" + (n/1e5).toFixed(1) + "L";
+    return "₹" + Math.round(n).toLocaleString("en-IN");
+  };
+  const riskTier = p => p >= 0.70 ? "HIGH" : p >= 0.40 ? "MEDIUM" : "LOW";
+
+  // KPI cards
+  document.getElementById("statRevenue").textContent = fmtINR(DATA.revenue);
+  const revChange = (DATA.revenueLast4wk - DATA.revenuePrev4wk) / DATA.revenuePrev4wk;
+  const trendEl = document.getElementById("trendRevenue");
+  trendEl.textContent = (revChange >= 0 ? "▲ " : "▼ ") + Math.abs(revChange*100).toFixed(1) + "%";
+  trendEl.className = "trend " + (revChange >= 0 ? "up" : "down");
+
+  document.getElementById("statLostSales").textContent = fmtINR(DATA.estimatedLostSales);
+  document.getElementById("subLostSales").textContent =
+    (DATA.estimatedLostSales/DATA.revenue*100).toFixed(1) + "% of revenue recoverable with better replenishment";
+
+  document.getElementById("statStockout").textContent = (DATA.stockoutRate*100).toFixed(1) + "%";
+  const days = ["M","T","W","T","F","S","S"];
+  const heat = document.getElementById("heatStrip");
+  const maxWd = Math.max(...DATA.weekdayStockout);
+  DATA.weekdayStockout.forEach((v,i)=>{
+    const cell = document.createElement("div");
+    cell.className = "cell";
+    const alpha = 0.35 + 0.65*(v/maxWd);
+    cell.style.background = `rgba(244,241,236,${alpha})`;
+    cell.textContent = days[i];
+    heat.appendChild(cell);
+  });
+
+  const highRiskCount = DATA.priorityRows.filter(r => riskTier(r.prob) === "HIGH").length;
+  document.getElementById("alertBadge").textContent = highRiskCount;
+
+  // donut (conic-gradient, computed from real category share)
+  const palette = ["var(--accent)", "#8B7355", "#C9A876", "#5B7B8A", "#A8998A", "#3D3529"];
+  let acc = 0;
+  const stops = DATA.categoryShare.map((c,i) => {
+    const start = acc; acc += c.value;
+    return `${palette[i % palette.length]} ${start}% ${acc}%`;
+  }).join(", ");
+  document.getElementById("donut").style.background = `conic-gradient(${stops})`;
+  const legend = document.getElementById("donutLegend");
+  DATA.categoryShare.forEach((c,i)=>{
+    const row = document.createElement("div"); row.className = "row";
+    row.innerHTML = `<span class="dot" style="background:${palette[i % palette.length]}"></span>${c.label}<span class="val">${c.value}%</span>`;
+    legend.appendChild(row);
+  });
+
+  // weekly revenue bar chart with a callout on the lowest week
+  const barWrap = document.getElementById("revBarChart");
+  const maxRev = Math.max(...DATA.weeklyRevenue.map(w=>w.value));
+  const minRev = Math.min(...DATA.weeklyRevenue.map(w=>w.value));
+  DATA.weeklyRevenue.forEach(w=>{
+    const col = document.createElement("div"); col.className = "bar-col";
+    const h = 20 + (w.value/maxRev)*130;
+    const isLow = w.value === minRev;
+    col.innerHTML = `${isLow ? `<div class="callout">Lowest week: ${fmtINR(w.value)}</div>` : ""}
+      <div class="bar${isLow ? " hi" : ""}" style="height:${h}px"></div>
+      <div class="label">${w.label}</div>`;
+    barWrap.appendChild(col);
+  });
+
+  // city stock-out bar chart
+  const cityWrap = document.getElementById("cityBarChart");
+  const maxCity = Math.max(...DATA.cityStockout.map(c=>c.pct));
+  DATA.cityStockout.forEach(c=>{
+    const col = document.createElement("div"); col.className = "col";
+    const h = 20 + (c.pct/maxCity)*110;
+    col.innerHTML = `<div class="pct">${c.pct}%</div>
+      <div class="fill" style="height:${h}px; background:${c.pct > 18 ? "var(--risk-high)" : "var(--accent)"}"></div>
+      <div class="city">${c.city}</div>`;
+    cityWrap.appendChild(col);
+  });
+
+  // priority table
+  const tbody = document.getElementById("tableBody");
+  DATA.priorityRows.forEach(r=>{
+    const tier = riskTier(r.prob);
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td>${r.store} · ${r.city}</td><td>${r.product}</td><td>${r.category}</td>
+      <td>${r.stock}</td><td>${r.forecast}</td><td>${(r.prob*100).toFixed(0)}%</td>
+      <td><span class="risk-pill ${tier}"><span class="dot"></span>${tier}</span></td>
+      <td>${r.reorder} units</td>`;
+    tbody.appendChild(tr);
+  });
+
+  // copy action list (no download links inside an artifact frame -- clipboard instead)
+  document.getElementById("copyBtn").addEventListener("click", async ()=>{
+    const lines = DATA.priorityRows.map(r =>
+      `${r.store} (${r.city}) — ${r.product} [${r.category}]: reorder ${r.reorder} units, risk ${riskTier(r.prob)}`
+    );
+    const text = "StockSense Priority Reorder List\n" + lines.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      const btn = document.getElementById("copyBtn");
+      const original = btn.textContent;
+      btn.textContent = "✓ Copied";
+      setTimeout(()=>{ btn.textContent = original; }, 1600);
+    } catch(e) {
+      const range = document.createRange();
+      const tmp = document.createElement("pre");
+      tmp.textContent = text; tmp.style.position = "fixed"; tmp.style.opacity = "0";
+      document.body.appendChild(tmp);
+      range.selectNode(tmp);
+      window.getSelection().removeAllRanges();
+      window.getSelection().addRange(range);
+      document.body.removeChild(tmp);
+    }
+  });
+})();
+</script>
